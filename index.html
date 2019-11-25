@@ -1,0 +1,241 @@
+<html>
+    <head>
+        <title>SpaceInvaders</title>
+        <style>
+            body{
+                margin: 0;
+                padding: 0px;
+                overflow: hidden;
+            }
+        </style>
+    </head>
+    <body>
+        <canvas id="myCanvas" width="900" height="600"></canvas>
+    </body>
+    <script src="js/bmparray.js"></script>
+    <script>
+        const g_canvas = document.getElementById('myCanvas');
+        const g_context = g_canvas.getContext('2d');
+        const g_FPS = 60;
+        const g_timeFrame = 1000/g_FPS;
+        const g_pixelWidth = 3;
+        const g_gridCols  = 13;
+        const g_spaceBetAliens = 100;
+        var g_move = undefined;
+
+        // make canvas fullscreen
+        g_canvas.width = window.innerWidth;
+        g_canvas.height = window.innerHeight;
+
+        // calculate the number of enemies to spawn
+        const g_numAliensPerRow = parseInt(g_canvas.width/((g_pixelWidth * g_gridCols) + g_spaceBetAliens));
+        var g_numAlienRows = 5;
+        var g_aliens = new Array(g_numAlienRows * g_numAliensPerRow);
+
+        // mother ship, player spaceship, shields
+        var g_motherShip = undefined;
+        var g_playerSpaceShip = undefined;
+
+        // Gradients for aliens
+        var g_alienColors = [[[878, 84, 200], [143, 148, 251]], [[0, 175, 255], [0, 224, 254]], [[242, 18, 18], [237, 166, 35]], [[10, 10, 10], [247, 30, 30]]]
+
+        // Create an array with alliens in it
+
+        function f_createAliens(){
+            let l_row = 1;
+            let l_x = undefined;
+            let l_y = undefined;
+            let l_alienID = undefined;
+            g_aliens = new Array(g_numAliensPerRow * g_numAlienRows);
+            for (let i=0; i< g_aliens.length; i++){
+                i = parseInt(i);
+                (i+1 > g_numAliensPerRow * l_row) ? l_row++ : null;
+                l_column = ((i+1) - ((l_row - 1) * g_numAliensPerRow));
+                l_alienID = parseInt(Math.random() * g_aliensBMPArray.length - 1);
+                l_x = (l_column) * (g_spaceBetAliens) + (l_column - 1) * (g_pixelWidth * g_gridCols);
+                l_y = 100 + (l_row - 1) * (g_pixelWidth * g_gridCols);
+                g_aliens[i] = new c_grid(
+                    g_aliensBMPArray[l_alienID],
+                    l_x,
+                    l_y,
+                    13,
+                    13,
+                    g_alienColors[l_alienID],
+                    g_pixelWidth
+                )
+                g_aliens[i].m_initPixels();
+                console.log(`Creating alien ${i} => ${l_x} : ${l_y} [${l_row},${l_column}]`);
+            }
+            console.log('Done creating aliens')
+        }
+
+        function c_grid(l_gridArray, l_x, l_y, l_row, l_columns, l_colors, l_pixelWidth){
+            
+            // gird properties
+            this.x = l_x;
+            this.y = l_y;
+            this.rows = l_row;
+            this.columns = l_columns;
+            this.colors = l_colors;
+            this.pixels = new Array(l_gridArray.length);
+            this.bitmapArray = l_gridArray;
+            this.pixelWidth = l_pixelWidth;
+            this.moveRight = false;
+            this.moveLeft = false;
+
+            // grid methods
+            
+            this.m_initPixels = () => {
+                // create pixel objects based on the bitmap object array
+                let l_row    = 1;
+                let l_column = undefined;
+                let l_colors = this.m_genColorSequence(this.colors[0], this.colors[1], this.columns);
+
+                // console.log(l_colors)
+
+                for (let i in this.bitmapArray){
+                    // rows and columns calculation
+                    i = parseInt(i);
+                    (i+1 > l_row*this.columns) ? l_row++ : null;
+                    l_column = ((i+1) - ((l_row-1)*this.columns));
+                    
+                    // create the pixel object
+                    this.pixels[i] = new c_pixel(
+                        this.x + (l_column-1) * this.pixelWidth, // X co-ordinate
+                        this.y + this.pixelWidth * (l_row-1),    // Y co-ordinate
+                        (this.bitmapArray[i]) ? "rgb(" + l_colors[l_column].join(",") + ")" : "black", // color
+                        this.pixelWidth, // width
+                        this.bitmapArray[i]
+                        );
+                }
+            }
+
+            this.m_draw = (l_context) => {
+                // console.log('Drawing the alien')
+                for (let i in this.pixels){
+                    this.pixels[i].m_draw(l_context);
+                }
+            }
+
+            this.m_genColorSequence = (l_start, l_end, n) => {
+                //Distance between each color
+                var steps = [
+                (l_end[0] - l_start[0]) / n,  
+                (l_end[1] - l_start[1]) / n,  
+                (l_end[2] - l_start[2]) / n  
+                ];
+
+                //Build array of colors
+                var colors = [l_start];
+                for(var ii = 0; ii < n - 1; ++ii) {
+                colors.push([
+                    Math.floor(colors[ii][0] + steps[0]),
+                    Math.floor(colors[ii][1] + steps[1]),
+                    Math.floor(colors[ii][2] + steps[2])
+                ]);
+                }
+                colors.push(l_end); 
+
+                return colors;
+            }
+
+            this.m_move = () => {
+                if (this.moveLeft || this.moveRight){
+                    console.log('Started moving the shit')
+                    let l_speed = (this.moveRight) ? 10 : (this.moveLeft) ? -10 : 0;
+                    
+                    // update the x and y of all the pixels
+                    for (let i in this.pixels){
+                        this.pixels[i].x += l_speed;
+                    }
+
+                    console.log('Done moving the shit')
+                }
+            }
+
+        }
+
+        function c_pixel(l_x, l_y, l_color, l_width, l_type){
+            // pixel properties
+            this.x = l_x;
+            this.y = l_y;
+            this.width = l_width;
+            this.type = l_type;
+            this.color = l_color;
+
+            // pixel methods
+            this.m_draw = (l_context) => {
+                if (this.type){
+                    l_context.save();
+                    l_context.shadowBlur = 15;
+                    l_context.shadowColor = this.color;
+                    l_context.fillStyle = this.color;
+                    l_context.fillRect(this.x, this.y, this.width, this.width);
+                    l_context.restore();
+                }
+            }
+        }
+
+        function f_clearScreen(){
+            g_context.fillStyle = "black";
+            g_context.fillRect(0, 0, g_canvas.width, g_canvas.height);
+            
+        }
+
+        function f_move(){
+            g_playerSpaceShip.m_move();
+        }
+
+        function f_drawObjects(){
+            for (let a in g_aliens){
+                g_aliens[a].m_draw(g_context);
+            }
+             //g_motherShip.m_draw(g_context); 
+            g_playerSpaceShip.m_draw(g_context);
+        }
+
+        document.addEventListener('keydown', (l_event) => {
+            switch(l_event.key.toLowerCase()){
+                case 'arrowright':
+                    g_playerSpaceShip.moveRight = true;
+                    break;
+                case 'arrowleft':
+                    g_playerSpaceShip.moveLeft = true;
+                    break;
+            }
+        });
+
+        document.addEventListener('keyup', (l_event) => {
+            switch(l_event.key.toLowerCase()){
+                case 'arrowright':
+                    g_playerSpaceShip.moveRight = false;
+                    break;
+                case 'arrowleft':
+                    g_playerSpaceShip.moveLeft = false;
+                    break;
+            }
+        });
+
+        function f_gameLoop(){
+            f_move();
+            f_clearScreen();
+            f_drawObjects();
+        }
+
+        function f_init(){
+            // create aliens
+            f_createAliens();
+            
+            // calculate the y co-ordinate of the player spaceship
+            let l_psshipy = g_canvas.height - Math.sqrt(g_playerSpaceshipbmpArray.length) - 50;
+            g_motherShip = new c_grid(g_motherShipbmpArray, 400, 50, 13, 13, [[104, 208, 232], [231, 144, 245]], 3);
+            g_playerSpaceShip = new c_grid(g_playerSpaceshipbmpArray, 100, l_psshipy, 13, 13, [[120, 170, 0], [200, 227, 121]], 5);
+            
+            // initate objects
+            g_motherShip.m_initPixels();
+            g_playerSpaceShip.m_initPixels();
+        }
+        f_init();
+        var g_gameLoop = setInterval(f_gameLoop, g_timeFrame);
+    </script>
+</html>
