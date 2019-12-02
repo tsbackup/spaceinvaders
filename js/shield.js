@@ -14,7 +14,7 @@ function c_shield(l_x, l_y, l_shieldBmpArray, l_color, l_pixelWidth){
 			let l_y = (p > 2) ? this.y + (13 * this.pixelWidth) : this.y;
 				
 			// create a grid object
-			this.parts[p] = new c_grid(this.bmpArray[p], l_x, l_y, 13, 13, 'green', this.pixelWidth);
+			this.parts[p] = new c_grid(this.bmpArray[p], l_x, l_y, 13, 13, this.color, this.pixelWidth);
 			
 			// init pixels of that part
 			this.parts[p].m_initPixels();

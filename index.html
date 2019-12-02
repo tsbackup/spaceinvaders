@@ -9,7 +9,7 @@
                 overflow: hidden;
                 font-family: 'VT323', monospace;
 				text-align: center;
-				background: black;
+				background: #060214;
             }
 			
 			canvas {
@@ -25,6 +25,7 @@
     <script src="js/bullet.js"></script>
     <script src="js/pixel.js"></script>
     <script src="js/shield.js"></script>
+    <script src="js/stars.js"></script>
     <script src="js/collision.js"></script>
     <script>
         const g_canvas = document.getElementById('myCanvas');
@@ -50,7 +51,12 @@
 		var g_playerLife = 5;
 		var g_playerLifeObjects = new Array(g_playerLife);
 		var g_score = 0;
-		var g_level = 0;
+		var g_level = 1;
+        var g_gameOver = false;
+        var g_gameRunning = true;
+        var g_gameMsg = [0, ""]; // isSuccessMsg, Message
+        var g_stars = new Array(50);
+        var g_currentScreen = 0;
 		
         // calculate the number of enemies to spawn
         const g_numAliensPerRow = 10;
@@ -59,6 +65,7 @@
         const g_pixelWidth = 3;
         const g_leftPadding = parseInt((g_canvas.width - (g_numAliensPerRow * g_gridCols * g_pixelWidth) - ((g_numAliensPerRow-1)*g_spaceBetAliens))/2)
         var g_aliens = new Array(g_numAlienRows * g_numAliensPerRow);
+        var g_aliveAliens = new Array(g_numAlienRows * g_numAliensPerRow);
 
         // mother ship, player spaceship, shields
         var g_motherShip = undefined;
@@ -89,6 +96,27 @@
 				g_alienBullets[b] = new c_AlienBullet(0, 0, 3, 'red', 5);
 			}
         }
+        
+        function f_initStars(){
+            let l_starColors = ['#5c5c5c', '#a3a3a3']
+            for (let i=0; i<g_stars.length; i++){
+                // initiate stars
+                let l_x = parseInt((Math.random() * (g_canvas.width/2 + 50)) + (g_canvas.width/2 - 50));
+                let l_y = parseInt((Math.random() * (g_canvas.height/2 + 50) + (g_canvas.height/2 - 50)));
+                //let l_sx = (l_x > g_canvas.width/2) ? 1 : -1;
+                let l_sy = parseInt((Math.random() * 3) + 1);
+                // (Math.abs(l_sx) > Math.abs(l_sy)) ? l_sy = 0 : l_sx = 0;
+                l_sx = 0
+                //l_sy = parseInt((Math.random() * 5) + 1) * l_sy;
+                g_stars[i] = new c_star(
+                    l_x,
+                    l_y,
+                    parseFloat((Math.random() * 1) + 0.01),
+                    l_starColors[parseInt(Math.random() * l_starColors.length)],
+                    l_sy
+                )
+            }
+        }
 
         // Create an array with alliens in it
         function f_createAliens(){
@@ -103,7 +131,7 @@
                 l_column = ((i+1) - ((l_row - 1) * g_numAliensPerRow));
                 l_alienID = (l_row -1);
                 l_x = g_leftPadding + (l_column) * (g_spaceBetAliens) + (l_column - 1) * (g_pixelWidth * g_gridCols);
-                l_y = 200 + (l_row - 1) * (g_pixelWidth * g_gridCols);
+                l_y = 100 + (l_row - 1) * (g_pixelWidth * g_gridCols);
                 g_aliens[i] = new c_grid(
                     g_aliensBMPArray[l_alienID],
                     l_x,
@@ -118,9 +146,35 @@
                     g_explosionBmpArray
                 )
                 g_aliens[i].m_initPixels();
-                // console.log(`Creating alien ${i} => ${l_x} : ${l_y} [${l_row},${l_column}]`);
+                g_aliveAliens[i] = i;
             }
             // console.log('Done creating aliens')
+        }
+        
+        function f_checkForGameOver(){
+            // checks if game is over
+            if (g_currentScreen){
+               if (g_playerLife <= 0){
+                    g_gameOver    = true;
+                    g_gameRunning = false;
+                    g_gameMsg     = [0, "You Failed!"];
+                } else {
+                    for (let a = g_aliens.length -1; a>=0; a--){
+                        if (g_aliens[a].pixels[g_aliens[a].pixelCount].y >= g_canvas.height - 300) {
+                            g_gameOver    = true;
+                            g_gameRunning = false;
+                            g_gameMsg     = [0, "You Failed!"];
+                            return;
+                        } else if (g_aliens[a].alive){
+                            return;
+                        }
+                    }
+                    g_gameOver    = true;
+                    g_gameRunning = false;
+                    g_gameMsg     = [1, "Level Completed Successfully!!"];
+                } 
+            }
+            
         }
 		
 		function f_spawnPlayer(){
@@ -156,7 +210,7 @@
 		}
 
         function f_clearScreen(){
-            g_context.fillStyle = "black";
+            g_context.fillStyle = "#060214";
             g_context.strokeStyle = "#0e0630";
 			g_context.lineWidth = 10;
             g_context.fillRect(0, 0, g_canvas.width, g_canvas.height);
@@ -169,18 +223,15 @@
 			if (g_frameCount % g_frameCountForAlienToShoot == 0){
 				for (let a = g_aliens.length-1; a>=0; a-- ){
 					if (g_aliens[a].alive){
-						if (a == 10){
-							// shoot from this alien
-							for (let b in g_alienBullets){
-								if (!g_alienBullets[b].active){
-									// init bullet
-									g_alienBullets[b].x = g_aliens[a].pixels[3].x;
-									g_alienBullets[b].y = g_aliens[a].pixels[0].y;
-									g_alienBullets[b].active = true;
-									return;
-								}
-							}
-						}
+                        for (let b in g_alienBullets){
+                            if (!g_alienBullets[b].active){
+                                // init bullet
+                                g_alienBullets[b].x = g_aliens[parseInt(g_aliveAliens[parseInt(Math.random() * g_aliveAliens.length)])].pixels[3].x;
+                                g_alienBullets[b].y = g_aliens[a].pixels[g_aliens[a].pixelCount].y;
+                                g_alienBullets[b].active = true;
+                                return;
+                            }
+                        }
 					}
 				}
 			}
@@ -188,15 +239,20 @@
 		}
 
         function f_move(){
-            f_movePlayer();
-            f_moveMotherShip();
-            f_moveAliens();
-            for (let b in g_bullets){
-                g_bullets[b].m_move();
+            if (g_currentScreen){
+                f_movePlayer();
+                f_moveMotherShip();
+                f_moveAliens();
+                for (let b in g_bullets){
+                    g_bullets[b].m_move();
+                }
+                for (let b in g_alienBullets){
+                    g_alienBullets[b].m_move();
+                }
             }
-			for (let b in g_alienBullets){
-				g_alienBullets[b].m_move();
-			}
+            for (let s in g_stars){
+                g_stars[s].m_move();
+            }
         }
         
         function f_movePlayer(){
@@ -243,9 +299,13 @@
                     if (g_aliens[l_alienRight].pixels[g_aliens[l_alienRight].pixelCount].x >= g_canvas.width - 50){
                         g_alienMoveSpeed = Math.abs(g_alienMoveSpeed) * -1;
                         g_moveAliensDown = true;
+                        // increase alien bombing speed
+                        g_frameCountForAlienToShoot -= 1;
                     } else if (g_aliens[l_alienLeft].pixels[0].x <= 50){
                         g_alienMoveSpeed = Math.abs(g_alienMoveSpeed);
                         g_moveAliensDown = true;
+                        // increase the alien bombing speed
+                        g_frameCountForAlienToShoot -= 1;
                     }
                 }
             }
@@ -278,52 +338,93 @@
         }
 
         function f_drawObjects(){
-            // Draw aliens
-            for (let a in g_aliens){
-                g_aliens[a].m_draw(g_context);
+            // draw stars
+            for (let s in g_stars){
+                g_stars[s].m_draw(g_context);
             }
-            // Draw player bullets
-            for (let b in g_bullets){
-                g_bullets[b].m_draw(g_context);
+            
+            // write the logo
+            g_context.font = "60px VT323";
+            g_context.textAlign = "center";
+            g_context.shadowColor = g_context.strokeStyle = "#a210e0";
+            //g_context.fillStyle = "black";
+            g_context.shadowBlur = 15;
+            //g_context.fillText('S P A C E   I N V A D E R S', g_canvas.width/2, 50);
+            g_context.strokeText('S P A C E   I N V A D E R S', g_canvas.width/2, 50);
+            g_context.textAlign = "left";
+            g_context.shadowBlur = 0;
+            g_context.shadowColor = "transparent"
+            
+            if (!g_gameOver && g_currentScreen){
+                // Draw aliens
+                for (let a in g_aliens){
+                    g_aliens[a].m_draw(g_context);
+                }
+                // Draw player bullets
+                for (let b in g_bullets){
+                    g_bullets[b].m_draw(g_context);
+                }
+                // Draw alien bullets
+                for (let b in g_alienBullets){
+                    g_alienBullets[b].m_draw(g_context);
+                }
+                // Draw Shields
+                for (let s in g_shield){
+                    g_shield[s].m_draw(g_context);
+                }
+
+                // Draw mothership and player space ship
+                g_motherShip.m_draw(g_context); 
+                g_playerSpaceShip.m_draw(g_context);
+
+                // Draw the bottom bar
+                g_context.fillStyle = "#0e0630";
+                g_context.fillRect(0, g_canvas.height - 100, g_canvas.width, 100);
+
+                // Write player heart
+                g_context.font = "20px VT323";
+                g_context.fillStyle = "orange";
+                g_context.fillText('L I F E: ', 10, g_canvas.height - 40);
+
+                // Draw hearts
+                for (let h in g_playerLifeObjects){
+                    g_playerLifeObjects[h].m_draw(g_context);
+                }
+
+                // Write score
+                g_context.textAlign = "center";
+                g_context.fillStyle = "lime";
+                g_context.fillText('S C O R E: ' + g_score, g_canvas.width/2, g_canvas.height - 40);
+                g_context.textAlign = "left";
+
+                // write level
+                g_context.textAlign = "right";
+                g_context.fillStyle = "aqua";
+                g_context.fillText('L E V E L: ' + g_level, g_canvas.width - 10, g_canvas.height - 40);
+                g_context.textAlign = "left";
+            
+            } else if(g_gameOver) {
+                
+                // Game over msg
+                g_context.textAlign = "center";
+                g_context.shadowColor = g_context.fillStyle = "aqua";
+                g_context.font = "50px VT323";
+                g_context.shadowBlur = 5;
+                g_context.fillText('G A M E   O V E R', g_canvas.width/2, g_canvas.height/2);
+                g_context.shadowColor = g_context.fillStyle = (g_gameMsg[0]) ? 'lime' : 'red';
+                g_context.font = "30px VT323";
+                g_context.fillText(g_gameMsg[1], g_canvas.width/2, g_canvas.height/2 + 50);
+                g_context.textAlign = "left";
+                g_context.shadowColor = "transparent";
+                g_context.shadowBlur = 0;
+            } else if (!g_currentScreen){
+                g_context.shadowColor = g_context.fillStyle = "aqua";
+                g_context.textAlign = "center";
+                g_context.font = "50px VT323";
+                g_context.shadowBlur = 5;
+                g_context.fillText('PRESS [ENTER] TO BEGIN', g_canvas.width/2, g_canvas.height/2);
             }
-			// Draw alien bullets
-			for (let b in g_alienBullets){
-				g_alienBullets[b].m_draw(g_context);
-			}
-			// Draw Shields
-			for (let s in g_shield){
-				g_shield[s].m_draw(g_context);
-			}
-			
-			// Draw mothership and player space ship
-            g_motherShip.m_draw(g_context); 
-            g_playerSpaceShip.m_draw(g_context);
-			
-			// Draw the bottom bar
-			g_context.fillStyle = "#0e0630";
-			g_context.fillRect(0, g_canvas.height - 100, g_canvas.width, 100);
-			
-			// Write player heart
-			g_context.font = "20px VT323";
-			g_context.fillStyle = "orange";
-			g_context.fillText('L I F E: ', 10, g_canvas.height - 40);
-			
-			// Draw hearts
-			for (let h in g_playerLifeObjects){
-				g_playerLifeObjects[h].m_draw(g_context);
-			}
-			
-			// Write score
-			g_context.textAlign = "center";
-			g_context.fillStyle = "lime";
-			g_context.fillText('S C O R E: ' + g_score, g_canvas.width/2, g_canvas.height - 40);
-			g_context.textAlign = "left";
-			
-			// write level
-			g_context.textAlign = "right";
-			g_context.fillStyle = "aqua";
-			g_context.fillText('L E V E L: ' + g_level, g_canvas.width - 10, g_canvas.height - 40);
-			g_context.textAlign = "left";
+            
         }
 
         document.addEventListener('keydown', (l_event) => {
@@ -336,6 +437,7 @@
                     break;
                 case ' ':
                     g_shoot = true;
+                    break;
             }
         });
 
@@ -349,13 +451,21 @@
                     break;
                 case ' ':
                     g_shoot = false;
+                    break;
             }
         });
+        
+        document.addEventListener('keypress', (l_event) => {
+            if (l_event.key.toLowerCase() == 'enter'){
+                (!g_currentScreen) ? g_currentScreen = 1 : null;
+            }
+        })
         
 
 
         function f_gameLoop(){
             f_calculateTime();  
+            f_checkForGameOver();
             f_shoot();
 			f_shootFromAlien();
             f_move();
@@ -376,7 +486,7 @@
 			for (let s=0; s<3; s++){
 				// calculate the shield's x and y co-ordinates
 				let l_pixelSize = 5;
-				let l_x = ((g_canvas.width/3) - (13 * l_pixelSize))/2 + s * g_canvas.width/3; 
+				let l_x = ((g_canvas.width/3) - (13 * l_pixelSize))/4 + (s * g_canvas.width/3)
 				
 				g_shield[s] = new c_shield(l_x, 
 										    g_canvas.height - 300, 
@@ -386,7 +496,7 @@
 									 		 g_shieldBmpArray[0],
 									 		 g_shieldBmpArray[3],
 									 		 g_shieldBmpArray[0]],
-											'green',
+											'#4d10b5',
 											3);
 				
 				// initiate the shield
@@ -397,6 +507,9 @@
             
 			// spawn player
 			f_spawnPlayer();
+            
+            // init stars
+            f_initStars();
         }
         f_init();
         var g_gameLoop = setInterval(f_gameLoop, g_timeFrame);

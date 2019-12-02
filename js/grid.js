@@ -54,7 +54,7 @@ function c_grid(l_gridArray, l_x, l_y, l_row, l_columns, l_colors, l_pixelWidth,
                 this.pixels2[i] = new c_pixel(
                     this.x + (l_column-1) * this.pixelWidth, // X co-ordinate
                     this.y + this.pixelWidth * (l_row-1),    // Y co-ordinate
-                    (this.bitmapArray[i]) ? ((typeof(l_colors) == "string") ? this.colors : "rgb(" + l_colors[l_column].join(",") + ")" ): "black", // color
+                    (this.bitmapArray2[i]) ? ((typeof(l_colors) == "string") ? this.colors : "rgb(" + l_colors[l_column].join(",") + ")" ): "black", // color
                     this.pixelWidth, // width
                     this.bitmapArray2[i]
                     );
@@ -65,7 +65,7 @@ function c_grid(l_gridArray, l_x, l_y, l_row, l_columns, l_colors, l_pixelWidth,
                 this.pixelExp[i] = new c_pixel(
                     this.x + (l_column-1) * this.pixelWidth, // X co-ordinate
                     this.y + this.pixelWidth * (l_row-1),    // Y co-ordinate
-                    (this.bitmapArray[i]) ? ((typeof(l_colors) == "string") ? this.colors : "rgb(" + l_colors[l_column].join(",") + ")" ): "black", // color
+                    (this.explosionBmpArray[i]) ? ((typeof(l_colors) == "string") ? this.colors : "rgb(" + l_colors[l_column].join(",") + ")" ): "black", // color
                     this.pixelWidth, // width
                     this.explosionBmpArray[i]
                     );
